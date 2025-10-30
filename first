@@ -1,0 +1,279 @@
+import tkinter as tk
+from tkinter import *
+from tkinter import ttk
+from tkinter import messagebox
+
+window = Tk()
+window.title('Основное окно')
+window.geometry('500x500')
+window.resizable(width= False, height= False)
+window.attributes('-alpha', 0.8)
+
+def other_windows():
+
+    def res1():
+        root = Tk()
+        root.title('Расчёт переплат')
+        root.geometry('500x500')
+        root.resizable(width=False, height=False)
+        root.attributes('-alpha', 0.8)
+
+        def is_valid(text):
+            return text.isdigit()
+
+        check = (root.register(is_valid), '%P')
+
+        money = Label(root, text='Введите сумму займа:')
+        money.grid()
+        txt1 = Entry(root, validate='key', validatecommand=check)
+        txt1.grid()
+
+        percent = Label(root, text='Введите годовой процент:')
+        percent.grid()
+        txt2 = Entry(root, validate='key', validatecommand=check)
+        txt2.grid()
+
+        duration = Label(root, text='Введите период займа в годах:')
+        duration.grid()
+        txt3 = Entry(root, validate='key', validatecommand=check)
+        txt3.grid()
+
+        def sub():
+            mon = int(txt1.get())
+            per = int(txt2.get())
+            dur = int(txt3.get())
+            ress = (
+                    ((mon + (mon * per) / 100) - mon) * dur
+            )
+            messagebox.showinfo(
+                'Результат', f'Ваша переплата составляет: {ress}')
+
+        finish = Button(root, text='Нажмите, когда введёте', command=sub)
+        finish.grid()
+
+        b55 = Button(root, text='EXIT', height=2, width=35, command=root.destroy)
+        b55.place(x=110, y=430)
+
+        root.mainloop()
+
+    def res2():
+
+        import urllib.request
+        import xml.etree.ElementTree as ET
+
+        # Глобальные переменные
+        rates = {
+            'USD': 90.0,
+            'EUR': 98.0,
+            'RUB': 1.0,
+            'CNY': 12.5,
+            'GBP': 114.0,
+            'JPY': 0.6,
+            'CHF': 102.0
+        }
+        currencies = ['USD', 'EUR', 'RUB', 'CNY', 'GBP', 'JPY', 'CHF']
+
+        def update_rates():
+
+            try:
+                url = 'https://www.cbr.ru/scripts/XML_daily.asp'
+
+                with urllib.request.urlopen(url) as response:
+                    xml_data = response.read().decode('windows-1251')
+
+                root = ET.fromstring(xml_data)
+
+                for valute in root.findall('Valute'):
+                    char_code = valute.find('CharCode').text
+                    value_text = valute.find('Value').text.replace(',', '.')
+                    value_num = float(value_text)
+                    nominal = int(valute.find('Nominal').text)
+
+                    rate = value_num / nominal
+
+                    if char_code in currencies:
+                        rates[char_code] = rate
+
+                rates['RUB'] = 1.0
+                messagebox.showinfo("Обновление", "Курсы обновлены.")
+
+            except Exception as e:
+                print(f"Ошибка загрузки: {e}")
+                messagebox.showwarning("Внимание!",
+                                       "Не удалось загрузить курсы (возможно, проблема в wi-fi). Будут использоваться резервные.")
+
+        def convert():
+
+            try:
+
+                amount_text = amount_entry.get().replace(',', '.')
+                amount = float(amount_text)
+                from_curr = from_combobox.get()
+                to_curr = to_combobox.get()
+
+                if from_curr not in rates:
+                    messagebox.showerror("Ошибка", f"Курс для {from_curr} не найден")
+                    return
+
+                if to_curr not in rates:
+                    messagebox.showerror("Ошибка", f"Курс для {to_curr} не найден")
+                    return
+
+                # Конвертируем через рубли
+                if from_curr == 'RUB':
+                    rub_amount = amount
+                else:
+                    rub_amount = amount * rates[from_curr]
+
+                if to_curr == 'RUB':
+                    result = rub_amount
+                else:
+                    result = rub_amount / rates[to_curr]
+
+                # Показываем результат
+                result_label.config(text=f"{amount:.2f} {from_curr} = {result:.2f} {to_curr}")
+
+            except ValueError:
+                messagebox.showerror("Ошибка", "Введите корректную сумму")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Ошибка: {e}")
+
+        # Создаем главное окно
+        root = tk.Tk()
+        root.title("Конвертация валют")
+        root.geometry("500x500")
+
+        # Создаем и размещаем элементы интерфейса
+        tk.Label(root, text="Конвертер валют:", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # Поле для ввода суммы
+        amount_frame = tk.Frame(root)
+        amount_frame.pack(pady=5)
+        tk.Label(amount_frame, text="Введите сумму:").pack(side=tk.LEFT, padx=5)
+        amount_entry = tk.Entry(amount_frame, width=15)
+        amount_entry.insert(0, "1")
+        amount_entry.pack(side=tk.LEFT, padx=5)
+
+        # Выбор валют
+        currency_frame = tk.Frame(root)
+        currency_frame.pack(pady=10)
+
+        tk.Label(currency_frame, text="Из:").grid(row=0, column=0, padx=5)
+        from_combobox = ttk.Combobox(currency_frame, values=currencies, state="readonly", width=8)
+        from_combobox.set('USD')
+        from_combobox.grid(row=0, column=1, padx=5)
+
+        tk.Label(currency_frame, text="В:").grid(row=0, column=2, padx=5)
+        to_combobox = ttk.Combobox(currency_frame, values=currencies, state="readonly", width=8)
+        to_combobox.set('EUR')
+        to_combobox.grid(row=0, column=3, padx=5)
+
+        # Кнопка конвертации
+        convert_btn = tk.Button(root, text="Конвертировать", command=convert)
+        convert_btn.pack(pady=10)
+
+        # Поле результата
+        result_label = tk.Label(root, text="", font=("Arial", 12, "bold"), fg="blue")
+        result_label.pack(pady=10)
+
+        # Кнопка обновления курсов
+        update_btn = tk.Button(root, text="Обновить курсы", command=update_rates)
+        update_btn.pack(pady=5)
+
+        b5 = Button(root, text='EXIT', height=2, width=35, command=root.destroy)
+        b5.place(x=110, y=430)
+
+        root.mainloop()
+
+    def res3():
+
+        import datetime
+        from datetime import datetime
+
+        root = Tk()
+        root.title('Записная книжка')
+        root.geometry('700x700')
+        root.resizable(width=False, height=False)
+
+        zapis = Entry(root)
+        zapis.place(width=500, height=700)
+
+        b = Button(root, text='EXIT', width=10, height=5, command=root.destroy)
+        b.pack(anchor=SE, padx=50, pady=330)
+
+        def save():
+            now = datetime.now()
+            f = now.strftime('%d.%m.%y. %H:%M')
+            h = ' '
+            text = zapis.get()
+
+            if text:
+                with open('test_loga.txt', 'a') as fp:
+                    fp.write('\n' + f + h + text)
+                zapis.delete(0, 'end')
+
+        zapis.bind('<Return>', lambda event: save())
+
+    window = Tk()
+    window.title('Добро пожаловать в систему!')
+    window.geometry('500x500')
+    window.resizable(width=False, height=False)
+    window.attributes('-alpha', 0.8)
+
+    b5 = Button(window, text='EXIT', height=2, width=35, command=window.destroy)
+    b5.place(x=110, y=430)
+
+    b1 = Button(window, text='Калькулятор переплат', height=2, width=35, command=res1)
+    b1.pack()
+
+    b2 = Button(window, text='Конвертер валют', height=2, width=35, command=res2)
+    b2.pack()
+
+    b3 = Button(window, text='Записная книжка', height=2, width=35, command=res3)
+    b3.pack()
+
+def check():
+
+    from password import pw
+    from password import nk
+
+    root = Tk()
+    root.title('Админка')
+    root.geometry('500x500')
+    root.resizable(width=False, height=False)
+    root.attributes('-alpha', 0.8)
+
+    lbl = Label(root, text='Введите логин:')
+    lbl.pack()
+
+    log = Entry(root)
+    log.pack()
+
+    lbl = Label(root, text='Введите пароль:')
+    lbl.pack()
+
+    pw1 = Entry(root)
+    pw1.pack()
+
+    def bruh():
+        x = pw1.get()
+        y = log.get()
+        if x == pw and y == nk:
+            other_windows()
+
+        else:
+            pass
+
+    finish = Button(root, text='Проверка логина и пароля', command=bruh)
+    finish.pack()
+
+    b5 = Button(root, text='EXIT', height=2, width=35, command=root.destroy)
+    b5.place(x=110, y=430)
+
+b4 = Button(window, text = 'Войдите в свой аккаунт.', height = 2, width = 35, command = check)
+b4.pack()
+
+b5 = Button(window, text = 'EXIT', height = 2, width = 35, command = window.destroy)
+b5.place(x = 110, y = 430)
+
+window.mainloop()
